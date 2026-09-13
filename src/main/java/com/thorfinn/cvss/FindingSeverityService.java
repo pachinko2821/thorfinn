@@ -2,7 +2,6 @@ package com.thorfinn.cvss;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import com.thorfinn.config.Config;
@@ -121,7 +120,7 @@ public class FindingSeverityService {
                 .subsequentSystemConfidentiality("LOW").subsequentSystemIntegrity("LOW").subsequentSystemAvailability("NONE")
                 .build());
 
-        DEFAULT_METRIC_MATRIX.put("CustomTabIntent Vulnerability", CvssMetricDefinition.builder()
+        DEFAULT_METRIC_MATRIX.put("CustomTab Vulnerability", CvssMetricDefinition.builder()
                 .attackVector("LOCAL").attackComplexity("LOW").attackRequirements("NONE")
                 .privilegesRequired("NONE").userInteraction("PASSIVE")
                 .vulnerableSystemConfidentiality("LOW").vulnerableSystemIntegrity("LOW").vulnerableSystemAvailability("NONE")
@@ -281,12 +280,11 @@ public class FindingSeverityService {
             if (f.isCarriedOver() && f.getSeverity() != null && !f.getSeverity().isBlank() && f.getCvssScore() != null) {
                 continue;
             }
-            boolean isDeviceVerified = isVerified(r);
-            evaluateFinding(f, isDeviceVerified);
+            evaluateFinding(f);
         }
     }
 
-    public void evaluateFinding(Finding finding, boolean isDeviceVerified) {
+    public void evaluateFinding(Finding finding) {
         if (finding == null) {
             return;
         }
@@ -305,57 +303,23 @@ public class FindingSeverityService {
         baseCvss.exploitMaturity(CvssV4.ExploitMaturity.NOT_DEFINED);
         Score baseScoreObj = baseCvss.calculateScore();
         double baseScore = baseScoreObj.getBaseScore();
-        finding.setCvssBaseScore(baseScore);
 
         if (!finding.isTruePositive()) {
             finding.setSeverity("NONE");
             finding.setCvssScore(0.0);
+            finding.setCvssBaseScore(0.0);
             finding.setCvssVector(baseCvss.getVector());
             return;
         }
 
-        boolean hasPoc = finding.getPoc() != null && !finding.getPoc().isBlank() && !"N/A".equalsIgnoreCase(finding.getPoc().trim());
-
-        CvssV4 threatCvss = buildCvssV4(def);
-        if (hasPoc && isDeviceVerified) {
-            threatCvss.exploitMaturity(CvssV4.ExploitMaturity.ATTACKED);
-        } else if (hasPoc) {
-            threatCvss.exploitMaturity(CvssV4.ExploitMaturity.POC);
-        } else {
-            threatCvss.exploitMaturity(CvssV4.ExploitMaturity.UNREPORTED);
-        }
-
-        Score threatScoreObj = threatCvss.calculateScore();
-        double finalScore = threatScoreObj.getBaseScore();
-
-        finding.setCvssScore(finalScore);
-        finding.setCvssVector(threatCvss.getVector());
-        finding.setSeverity(scoreToSeverity(finalScore));
+        finding.setCvssScore(baseScore);
+        finding.setCvssBaseScore(baseScore);
+        finding.setCvssVector(baseCvss.getVector());
+        finding.setSeverity(scoreToSeverity(baseScore));
 
         log.debug("[*] Finding [{} -> {}] Severity: {} (Score: {}, Base: {}, Vector: {})",
                 finding.getSourceFile(), finding.getSinkFile(),
                 finding.getSeverity(), finding.getCvssScore(), finding.getCvssBaseScore(), finding.getCvssVector());
-    }
-
-    boolean isVerified(VerificationResult r) {
-        if (r == null) {
-            return false;
-        }
-        String status = r.getStatus();
-        if (status == null || status.isBlank()) {
-            return false;
-        }
-        String normalized = status.trim().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "EXECUTED" ->
-                true;
-            case "CARRIED_OVER" ->
-                r.getEvidence() != null && !r.getEvidence().isEmpty();
-            case "EXECUTED_NO_EVIDENCE", "MANUAL_VERIFICATION", "SKIPPED", "ERROR", "LLM_ERROR", "FALSE_POSITIVE" ->
-                false;
-            default ->
-                false;
-        };
     }
 
     private CvssMetricDefinition resolveMetricDefinition(String vulnClass, String tool) {

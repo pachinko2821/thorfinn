@@ -72,7 +72,7 @@ public class HtmlReportGenerator {
         }
     }
 
-    private String buildHead() {
+    String buildHead() {
         return """
                 <!DOCTYPE html>
                 <html lang="en">
@@ -279,13 +279,11 @@ public class HtmlReportGenerator {
                     tr:hover td {
                         background: var(--bg-secondary);
                     }
-                    tr.row-false-positive .badge,
                     tr.row-false-positive .vuln-tag {
                         background: #e8f5e9;
                         color: var(--accent-green);
                         border: 1px solid var(--accent-green);
                     }
-                    tr.row-true-positive .badge,
                     tr.row-true-positive .vuln-tag {
                         background: #fde8e8;
                         color: var(--accent-red);
@@ -860,7 +858,7 @@ public class HtmlReportGenerator {
             sb.append(detailItem("Status", statusText));
             sb.append(detailItemHtml("Severity", getSeverityBadge(f)));
             if (f.getCvssScore() != null) {
-                sb.append(detailItem("CVSS v4.0 Score", String.format("%.1f (Base: %.1f)", f.getCvssScore(), f.getCvssBaseScore() != null ? f.getCvssBaseScore() : f.getCvssScore())));
+                sb.append(detailItem("CVSS v4.0 Score", String.format("%.1f", f.getCvssScore())));
             }
             if (f.getCvssVector() != null && !f.getCvssVector().isBlank()) {
                 sb.append(detailItemHtml("CVSS v4.0 Vector", buildCvssCalculatorLink(f.getCvssVector())));
